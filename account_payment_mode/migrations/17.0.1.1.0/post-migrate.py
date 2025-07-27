@@ -1,9 +1,14 @@
-from openupgradelib import openupgrade
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl)
 
-
-@openupgrade.migrate()
-def migrate(env, version):
-    env.cr.execute(
+def migrate(cr, installed_version):
+    """
+    Migración adaptada del formato OpenUpgradeLib al formato nativo de Odoo.
+    """
+    from odoo import api, SUPERUSER_ID
+    env = api.Environment(cr, SUPERUSER_ID, {})
+    
+    # Verificar si hay tags HTML en el campo note
+    cr.execute(
         """
         SELECT
             id
@@ -11,8 +16,12 @@ def migrate(env, version):
         WHERE note::text ~* '<[^>]+>' LIMIT 1
         """
     )
-    if env.cr.rowcount == 0:
-        # If there are no HTML tags in the note field, we can convert it to HTML
-        openupgrade.convert_field_to_html(
-            env.cr, "account_payment_mode", "note", "note", False, True
-        )
+    
+    if cr.rowcount == 0:
+        # Si no hay tags HTML en el campo note, convertirlo a HTML
+        # Implementación manual de convert_field_to_html
+        cr.execute("""
+            UPDATE account_payment_mode
+            SET note = '<p>' || COALESCE(note, '') || '</p>'
+            WHERE note IS NOT NULL AND note != ''
+        """)
